@@ -1,18 +1,23 @@
 defmodule SearchToilets do
+  require Ecto.Query
   def main do
-    x = 5.5
-    #IO.gets("現在地のx座標を入力してください：")
-    #|> String.trim()
-    #|> String.to_float()
-    y = 25.8
-      #IO.gets("現在地のy座標を入力してください：")
-    #|> String.trim()
-    #|> String.to_float()
-    IO.inspect([x, y])
+    SearchToilets.Repo.start_link()
+    x = IO.gets("現在地のx座標を入力してください：")
+    |> String.trim()
+    |> String.to_float()
+    y = IO.gets("現在地のy座標を入力してください：")
+    |> String.trim()
+    |> String.to_float()
+    curr_position = [x, y]
     type = IO.gets("検索するトイレの種別を入力してください：")
     |> String.trim()
 
     show_result(type)
+    |> Enum.map(&calculate_distance(&1, curr_position))
+    |> Enum.filter(fn x -> Enum.at(x, 1) <= 150.0 end)
+    |> show_toilets()
+    |> Enum.map(fn x -> [x.id, x.position_x, x.position_y, x.waiting_time] end)
+
   end
 
   def create_database do
@@ -28,7 +33,7 @@ defmodule SearchToilets do
   end
 
   def show_result(type) do
-    require Ecto.Query
+
     case type do
       "M" -> SearchToilets.Toilet |> Ecto.Query.where(is_male: true)
       "F" -> SearchToilets.Toilet |> Ecto.Query.where(is_female: true)
@@ -37,4 +42,17 @@ defmodule SearchToilets do
     |> SearchToilets.Repo.all
   end
 
+  def calculate_distance(struct, curr_position) do
+    [struct.id,
+    :math.sqrt(
+    :math.pow((struct.position_x - Enum.at(curr_position, 0)), 2) +
+    :math.pow((struct.position_y - Enum.at(curr_position, 1)), 2)
+    )]
+  end
+
+  def show_toilets(list) do
+    Enum.map(list, fn x ->
+      [id, _] = x
+      SearchToilets.Toilet |> SearchToilets.Repo.get(id) end)
+  end
 end
